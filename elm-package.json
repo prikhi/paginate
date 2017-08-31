@@ -1,5 +1,5 @@
 {
-    "version": "1.0.1",
+    "version": "2.0.0",
     "summary": "Pagination with Built-In Fetching & Caching of Requests",
     "repository": "https://github.com/prikhi/paginate.git",
     "license": "BSD3",

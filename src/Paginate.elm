@@ -264,11 +264,12 @@ movePrevious (Config config) ((Paginated pagination) as model) =
 
 {-| Move to a specific page.
 -}
-jumpTo : Config a b -> Paginated a b -> Int -> ( Paginated a b, Cmd (Msg a) )
-jumpTo (Config config) ((Paginated pagination) as model) page =
+jumpTo : Config a b -> Int -> Paginated a b -> ( Paginated a b, Cmd (Msg a) )
+jumpTo (Config config) page ((Paginated pagination) as model) =
     let
         canJump =
-            page > 0 && page <= getTotalPages (Paginated pagination)
+            (page > 0 && page <= getTotalPages (Paginated pagination))
+                || Dict.isEmpty pagination.items
 
         jumpDifference =
             page - getPage (Paginated pagination)
@@ -344,7 +345,7 @@ update config msg (Paginated model) =
                     List.isEmpty items && getTotalPages updatedModel > 0
             in
                 if pageIsEmptyButPagesExist && page == model.currentPage then
-                    jumpTo config updatedModel (getTotalPages updatedModel)
+                    jumpTo config (getTotalPages updatedModel) updatedModel
                 else
                     ( updatedModel, Cmd.none )
 

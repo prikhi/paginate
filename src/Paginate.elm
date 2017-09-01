@@ -429,8 +429,8 @@ jumpTo (Config config) page ((Paginated pagination) as model) =
 {-| Replace the current Extra Request Data, jumping to page 1 & performing new
 fetch requests. Does nothing if the Data is equal to existing Data.
 -}
-updateData : Config a b -> Paginated a b -> b -> ( Paginated a b, Cmd (Msg a) )
-updateData config ((Paginated pagination) as model) newData =
+updateData : Config a b -> b -> Paginated a b -> ( Paginated a b, Cmd (Msg a) )
+updateData config newData ((Paginated pagination) as model) =
     if newData == pagination.requestData then
         ( model, Cmd.none )
     else
@@ -441,8 +441,8 @@ updateData config ((Paginated pagination) as model) newData =
 requests. Does nothing if the new value is the same as the current items per
 page.
 -}
-updatePerPage : Config a b -> Paginated a b -> Int -> ( Paginated a b, Cmd (Msg a) )
-updatePerPage config ((Paginated pagination) as model) newPerPage =
+updatePerPage : Config a b -> Int -> Paginated a b -> ( Paginated a b, Cmd (Msg a) )
+updatePerPage config newPerPage ((Paginated pagination) as model) =
     if newPerPage == pagination.perPage then
         ( model, Cmd.none )
     else

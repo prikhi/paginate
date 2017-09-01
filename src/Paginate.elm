@@ -18,6 +18,8 @@ module Paginate
           -- Querying
         , isLoading
         , hasNone
+        , isFirst
+        , isLast
         , hasPrevious
         , hasNext
           -- Modification
@@ -58,7 +60,7 @@ TODO: Eventually:
 
 # Querying Status
 
-@docs isLoading, hasNone, hasPrevious, hasNext
+@docs isLoading, hasNone, isFirst, isLast, hasPrevious, hasNext
 
 # Modifying Pagination
 
@@ -327,6 +329,20 @@ isLoading (Paginated { items, currentPage }) =
 
         _ ->
             True
+
+
+{-| Is the current page the first page?
+-}
+isFirst : Paginated a b -> Bool
+isFirst =
+    not << hasPrevious
+
+
+{-| Is the current page the last page?
+-}
+isLast : Paginated a b -> Bool
+isLast =
+    not << hasNext
 
 
 {-| Are there page's before the current one?

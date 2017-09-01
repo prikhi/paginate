@@ -9,6 +9,7 @@ module Paginate
           -- Retrieving Data
         , getCurrent
         , getPage
+        , getPerPage
         , getTotalPages
         , getTotalItems
         , getError
@@ -27,6 +28,7 @@ module Paginate
         , movePrevious
         , jumpTo
         , updateData
+        , updatePerPage
           -- Update / Messages
         , Msg
         , update
@@ -40,7 +42,6 @@ TODO: Eventually:
   - examples
   - fetchRequest per-args cache?
       - toString on args to get a (Dict String (Dict PageNumber Chunk))?
-  - custom page sizes(+ reorganize items when changed)
 
 # Model
 
@@ -52,7 +53,7 @@ TODO: Eventually:
 
 # Retrieving Data
 
-@docs getCurrent, getPage, getTotalPages, getTotalItems, getError, getData
+@docs getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getData
 
 # Rendering
 
@@ -64,7 +65,7 @@ TODO: Eventually:
 
 # Modifying Pagination
 
-@docs moveNext, movePrevious, jumpTo, updateData
+@docs moveNext, movePrevious, jumpTo, updateData, updatePerPage
 
 # Updating / Messages
 
@@ -95,6 +96,7 @@ type Paginated a b
     = Paginated
         { items : Dict Int (WebData (Chunk a))
         , currentPage : Int
+        , perPage : Int
         , totalCount : Int
         , requestData : b
         }
@@ -110,17 +112,17 @@ type alias FetchResponse a =
 
 
 {-| The `Config` type is used to build a Fetch Request, given the Paginated's
-Request Data & a Page Number.
+Request Data, a Page Number, & the Items per Page.
 -}
 type Config a b
     = Config
-        { fetchRequest : b -> Int -> Http.Request (FetchResponse a)
+        { fetchRequest : b -> Int -> Int -> Http.Request (FetchResponse a)
         }
 
 
 {-| Make a `Config` from a function that takes a list of Parameters & a Page Number.
 -}
-makeConfig : (b -> Int -> Http.Request (FetchResponse a)) -> Config a b
+makeConfig : (b -> Int -> Int -> Http.Request (FetchResponse a)) -> Config a b
 makeConfig fetchRequest =
     Config { fetchRequest = fetchRequest }
 
@@ -128,13 +130,14 @@ makeConfig fetchRequest =
 {-| Get an initial Pagination & Fetch Commands from a `Config`, list of Filters,
 & Page Number.
 -}
-initial : Config a b -> b -> Int -> ( Paginated a b, Cmd (Msg a) )
-initial config requestData page =
+initial : Config a b -> b -> Int -> Int -> ( Paginated a b, Cmd (Msg a) )
+initial config requestData page perPage =
     let
         initialModel =
             Paginated
                 { items = Dict.empty
                 , currentPage = page
+                , perPage = perPage
                 , totalCount = 0
                 , requestData = requestData
                 }
@@ -161,11 +164,18 @@ getPage (Paginated { currentPage }) =
     currentPage
 
 
+{-| Get the number of items to show per page.
+-}
+getPerPage : Paginated a b -> Int
+getPerPage (Paginated { perPage }) =
+    perPage
+
+
 {-| Get the total number of pages.
 -}
 getTotalPages : Paginated a b -> Int
-getTotalPages (Paginated { totalCount }) =
-    ceiling <| toFloat totalCount / toFloat 25
+getTotalPages (Paginated { totalCount, perPage }) =
+    ceiling <| toFloat totalCount / toFloat perPage
 
 
 {-| Get the total item count.
@@ -424,7 +434,19 @@ updateData config ((Paginated pagination) as model) newData =
     if newData == pagination.requestData then
         ( model, Cmd.none )
     else
-        initial config newData 1
+        initial config newData 1 pagination.perPage
+
+
+{-| Update the items per page, jumping to page 1 & performing new fetch
+requests. Does nothing if the new value is the same as the current items per
+page.
+-}
+updatePerPage : Config a b -> Paginated a b -> Int -> ( Paginated a b, Cmd (Msg a) )
+updatePerPage config ((Paginated pagination) as model) newPerPage =
+    if newPerPage == pagination.perPage then
+        ( model, Cmd.none )
+    else
+        initial config pagination.requestData 1 newPerPage
 
 
 
@@ -524,7 +546,7 @@ getFetches (Config config) (Paginated pagination) =
 
         currentFetch =
             if not <| hasItems 0 then
-                config.fetchRequest pagination.requestData currentPage
+                config.fetchRequest pagination.requestData currentPage pagination.perPage
                     |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage currentPage)
             else
@@ -532,7 +554,7 @@ getFetches (Config config) (Paginated pagination) =
 
         previousFetch =
             if not <| hasItems -1 then
-                config.fetchRequest pagination.requestData (currentPage - 1)
+                config.fetchRequest pagination.requestData (currentPage - 1) pagination.perPage
                     |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage <| currentPage - 1)
             else
@@ -540,7 +562,7 @@ getFetches (Config config) (Paginated pagination) =
 
         nextFetch =
             if not <| hasItems 1 then
-                config.fetchRequest pagination.requestData (currentPage + 1)
+                config.fetchRequest pagination.requestData (currentPage + 1) pagination.perPage
                     |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage <| currentPage + 1)
             else

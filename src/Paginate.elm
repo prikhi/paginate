@@ -13,6 +13,8 @@ module Paginate
         , getTotalItems
         , getError
         , getData
+        , getPagerSections
+        , bootstrapPager
           -- Querying
         , isLoading
         , hasNone
@@ -50,6 +52,10 @@ TODO: Eventually:
 
 @docs getCurrent, getPage, getTotalPages, getTotalItems, getError, getData
 
+# Rendering
+
+@docs getPagerSections, bootstrapPager
+
 # Querying Status
 
 @docs isLoading, hasNone, hasPrevious, hasNext
@@ -66,6 +72,8 @@ TODO: Eventually:
 
 import Dict exposing (Dict)
 import Http
+import Html exposing (Html, Attribute, li, a, span, text)
+import Html.Attributes exposing (class)
 import RemoteData exposing (WebData)
 
 
@@ -195,6 +203,115 @@ hasNone (Paginated { items, currentPage }) =
 
         _ ->
             False
+
+
+{-| Generate sections of pages to show for a Pager. Depending on the current
+page & total number of pages, the sections may either be a single section, a
+beginning & end section, or a beginning, middle, & end section.
+
+Each section's page is a tuple of `(pageNumber, isCurrentPage)`.
+
+The sections are defined by the initial arguments, the first is the number of
+pages to show at the end sections, while the second is the number of pages to
+show around the current page if it is in the middle section.
+
+Some example of Pagers generated with 2 end & middle pages, with the current
+page marked by `*`:
+
+    *1*|2|3|4|5|6
+
+    *1*|2|3|4|5|...|49|50
+
+    1|2|3|4|*5*|...|49|50
+
+    1|2|...|4|5|*6*|7|8|...|49|50
+
+    1|2|...|9|10|*11*|12|13|...|49|50
+
+    1|2|...|*46*|47|48|49|50
+
+No split is made if there are not enough pages to show a middle section. When
+at an end section, enough pages are shown that there must be something hidden
+before splitting off the middle section.
+
+-}
+getPagerSections : Int -> Int -> Paginated a b -> List (List ( Int, Bool ))
+getPagerSections endPagesToShow middlePagesToShow pagination =
+    let
+        currentPage =
+            getPage pagination
+
+        totalPages =
+            getTotalPages pagination
+
+        showSplit =
+            totalPages >= pagesToSplitAt
+
+        pagesToSplitAt =
+            endPagesToShow * 2 + middlePagesToShow * 2 + 3
+
+        showMiddle =
+            showSplit
+                && (currentPage > endPagesToShow + middlePagesToShow + 1)
+                && (currentPage < totalPages - endPagesToShow - middlePagesToShow)
+
+        pageSections =
+            if showMiddle then
+                [ List.range 1 endPagesToShow
+                , List.range (currentPage - middlePagesToShow) (currentPage + middlePagesToShow)
+                , List.range (totalPages - endPagesToShow + 1) (totalPages)
+                ]
+            else if showSplit && currentPage > endPagesToShow + middlePagesToShow + 1 then
+                [ List.range 1 endPagesToShow
+                , List.range (totalPages - endPagesToShow - middlePagesToShow) totalPages
+                ]
+            else if showSplit then
+                [ List.range 1 (endPagesToShow + middlePagesToShow + 1)
+                , List.range (totalPages - endPagesToShow + 1) totalPages
+                ]
+            else
+                [ List.range 1 totalPages ]
+    in
+        List.map (List.map (\pageNumber -> ( pageNumber, pageNumber == currentPage )))
+            pageSections
+
+
+{-| Render a split Pager with the standard Bootstrap4 classes.
+
+It takes a function that takes a page number & generates attributes for an
+item's `a` element, the number of pages to show at the ends of the pagination,
+the number of middle pages to show in the middles of the pagination, and a
+pagination.
+
+It will split out a list of `li` elements for each page that should be shown,
+with disabled dots(`...`) between each section. A list is returned so that you
+can add previous/next buttons if you want them.
+
+See the docs for `getPagerSections` to see how the splitting works.
+-}
+bootstrapPager : (Int -> List (Html.Attribute msg)) -> Int -> Int -> Paginated a b -> List (Html msg)
+bootstrapPager linkAttributes endPagesToShow middlePagesToShow pagination =
+    let
+        itemClass isCurrent =
+            if isCurrent then
+                "page-item active"
+            else
+                "page-item"
+
+        renderItem page isCurrent =
+            li [ class <| itemClass isCurrent ]
+                [ a (class "page-link" :: linkAttributes page)
+                    [ text <| toString page ]
+                ]
+
+        dots =
+            li [ class "page-item disabled" ]
+                [ span [ class "page-link" ] [ text "..." ] ]
+    in
+        getPagerSections endPagesToShow middlePagesToShow pagination
+            |> List.map (List.map <| uncurry renderItem)
+            |> List.intersperse [ dots ]
+            |> List.concat
 
 
 {-| Is the current page's fetch request still loading?

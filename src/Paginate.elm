@@ -15,6 +15,7 @@ module Paginate
         , getError
         , getRequestData
         , getResponseData
+        , getRemoteData
         , getPagerSections
         , bootstrapPager
           -- Querying
@@ -54,7 +55,7 @@ TODO: Eventually:
 
 # Retrieving Data
 
-@docs getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getRequestData, getResponseData
+@docs getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getRequestData, getResponseData, getRemoteData
 
 # Rendering
 
@@ -221,6 +222,18 @@ getRequestData (Paginated { requestData }) =
 getResponseData : Paginated a b c -> Maybe c
 getResponseData (Paginated { responseData }) =
     responseData
+
+
+{-| Return the raw `WebData` for the current page.
+-}
+getRemoteData : Paginated a b c -> WebData (List a)
+getRemoteData (Paginated { items, currentPage }) =
+    case Dict.get currentPage items of
+        Nothing ->
+            RemoteData.NotAsked
+
+        Just data ->
+            RemoteData.map (\(Chunk { items }) -> items) data
 
 
 {-| Did the current page load successfully but return no items?

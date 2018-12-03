@@ -1,40 +1,12 @@
-module Paginate
-    exposing
-        ( Paginated
-        , initial
-          -- Config
-        , Config
-        , FetchResponse
-        , makeConfig
-          -- Retrieving Data
-        , getCurrent
-        , getPage
-        , getPerPage
-        , getTotalPages
-        , getTotalItems
-        , getError
-        , getRequestData
-        , getResponseData
-        , getRemoteData
-        , getPagerSections
-        , bootstrapPager
-          -- Querying
-        , isLoading
-        , hasNone
-        , isFirst
-        , isLast
-        , hasPrevious
-        , hasNext
-          -- Modification
-        , moveNext
-        , movePrevious
-        , jumpTo
-        , updateData
-        , updatePerPage
-          -- Update / Messages
-        , Msg
-        , update
-        )
+module Paginate exposing
+    ( Paginated, initial
+    , Config, FetchResponse, makeConfig
+    , getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getRequestData, getResponseData, getRemoteData
+    , getPagerSections, bootstrapPager
+    , isLoading, hasNone, isFirst, isLast, hasPrevious, hasNext
+    , moveNext, movePrevious, jumpTo, updateData, updatePerPage
+    , Msg, update
+    )
 
 {-| `Paginate` is used for querying & paginating API responses. Paginate will
 handle fetching new pages of data, and caches already fetched data.
@@ -45,29 +17,36 @@ TODO: Eventually:
   - fetchRequest per-args cache?
       - toString on args to get a (Dict String (Dict PageNumber Chunk))?
 
+
 # Model
 
 @docs Paginated, initial
+
 
 # Config
 
 @docs Config, FetchResponse, makeConfig
 
+
 # Retrieving Data
 
 @docs getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getRequestData, getResponseData, getRemoteData
+
 
 # Rendering
 
 @docs getPagerSections, bootstrapPager
 
+
 # Querying Status
 
 @docs isLoading, hasNone, isFirst, isLast, hasPrevious, hasNext
 
+
 # Modifying Pagination
 
 @docs moveNext, movePrevious, jumpTo, updateData, updatePerPage
+
 
 # Updating / Messages
 
@@ -76,10 +55,11 @@ TODO: Eventually:
 -}
 
 import Dict exposing (Dict)
-import Http
-import Html exposing (Html, Attribute, li, a, span, text)
+import Html exposing (Attribute, Html, a, li, span, text)
 import Html.Attributes exposing (class)
+import Http
 import RemoteData exposing (WebData)
+
 
 
 -- Model
@@ -97,6 +77,7 @@ page number, total count, and additional data to pass to the fetch command..
 The `a` type refers to the data that is paginated, `b` refers to any additional
 data you need to make the API request, and `c` is any additional data you want
 to pull out of the API response.
+
 -}
 type Paginated a b c
     = Paginated
@@ -115,6 +96,7 @@ needs to return the items & a total count of all items.
 If any additional data is returned that you would like to have access to, you
 can decode it to the `extraData` field and use `getResponseData` to pull it
 out of a `Paginated`.
+
 -}
 type alias FetchResponse a c =
     { items : List a
@@ -128,13 +110,13 @@ Request Data, a Page Number, & the Items per Page.
 -}
 type Config a b c
     = Config
-        { fetchRequest : b -> Int -> Int -> Http.Request (FetchResponse a c)
+        { fetchRequest : b -> Int -> Int -> Cmd (WebData (FetchResponse a c))
         }
 
 
 {-| Make a `Config` from a function that takes a list of Parameters & a Page Number.
 -}
-makeConfig : (b -> Int -> Int -> Http.Request (FetchResponse a c)) -> Config a b c
+makeConfig : (b -> Int -> Int -> Cmd (WebData (FetchResponse a c))) -> Config a b c
 makeConfig fetchRequest =
     Config { fetchRequest = fetchRequest }
 
@@ -155,9 +137,9 @@ initial config requestData page perPage =
                 , responseData = Nothing
                 }
     in
-        ( initialModel
-        , getFetches config initialModel
-        )
+    ( initialModel
+    , getFetches config initialModel
+    )
 
 
 {-| Get the current list of items.
@@ -166,7 +148,7 @@ getCurrent : Paginated a b c -> List a
 getCurrent (Paginated { items, currentPage }) =
     Dict.get currentPage items
         |> Maybe.andThen RemoteData.toMaybe
-        |> Maybe.map (\(Chunk { items }) -> items)
+        |> Maybe.map (\(Chunk c) -> c.items)
         |> Maybe.withDefault []
 
 
@@ -233,7 +215,7 @@ getRemoteData (Paginated { items, currentPage }) =
             RemoteData.NotAsked
 
         Just data ->
-            RemoteData.map (\(Chunk { items }) -> items) data
+            RemoteData.map (\(Chunk c) -> c.items) data
 
 
 {-| Did the current page load successfully but return no items?
@@ -303,21 +285,24 @@ getPagerSections endPagesToShow middlePagesToShow pagination =
             if showMiddle then
                 [ List.range 1 endPagesToShow
                 , List.range (currentPage - middlePagesToShow) (currentPage + middlePagesToShow)
-                , List.range (totalPages - endPagesToShow + 1) (totalPages)
+                , List.range (totalPages - endPagesToShow + 1) totalPages
                 ]
+
             else if showSplit && currentPage > endPagesToShow + middlePagesToShow + 1 then
                 [ List.range 1 endPagesToShow
                 , List.range (totalPages - endPagesToShow - middlePagesToShow) totalPages
                 ]
+
             else if showSplit then
                 [ List.range 1 (endPagesToShow + middlePagesToShow + 1)
                 , List.range (totalPages - endPagesToShow + 1) totalPages
                 ]
+
             else
                 [ List.range 1 totalPages ]
     in
-        List.map (List.map (\pageNumber -> ( pageNumber, pageNumber == currentPage )))
-            pageSections
+    List.map (List.map (\pageNumber -> ( pageNumber, pageNumber == currentPage )))
+        pageSections
 
 
 {-| Render a split Pager with the standard Bootstrap4 classes.
@@ -332,6 +317,7 @@ with disabled dots(`...`) between each section. A list is returned so that you
 can add previous/next buttons if you want them.
 
 See the docs for `getPagerSections` to see how the splitting works.
+
 -}
 bootstrapPager : (Int -> List (Html.Attribute msg)) -> Int -> Int -> Paginated a b c -> List (Html msg)
 bootstrapPager linkAttributes endPagesToShow middlePagesToShow pagination =
@@ -339,23 +325,24 @@ bootstrapPager linkAttributes endPagesToShow middlePagesToShow pagination =
         itemClass isCurrent =
             if isCurrent then
                 "page-item active"
+
             else
                 "page-item"
 
         renderItem page isCurrent =
             li [ class <| itemClass isCurrent ]
                 [ a (class "page-link" :: linkAttributes page)
-                    [ text <| toString page ]
+                    [ text <| String.fromInt page ]
                 ]
 
         dots =
             li [ class "page-item disabled" ]
                 [ span [ class "page-link" ] [ text "..." ] ]
     in
-        getPagerSections endPagesToShow middlePagesToShow pagination
-            |> List.map (List.map <| uncurry renderItem)
-            |> List.intersperse [ dots ]
-            |> List.concat
+    getPagerSections endPagesToShow middlePagesToShow pagination
+        |> List.map (List.map <| \( a, b ) -> renderItem a b)
+        |> List.intersperse [ dots ]
+        |> List.concat
 
 
 {-| Is the current page's fetch request still loading?
@@ -363,7 +350,7 @@ bootstrapPager linkAttributes endPagesToShow middlePagesToShow pagination =
 isLoading : Paginated a b c -> Bool
 isLoading (Paginated { items, currentPage }) =
     case Dict.get currentPage items of
-        Just (RemoteData.Loading) ->
+        Just RemoteData.Loading ->
             True
 
         Just _ ->
@@ -416,7 +403,7 @@ moveNext (Config config) ((Paginated pagination) as model) =
                     (\_ -> Paginated { pagination | currentPage = currentPage + 1 })
                 |> Maybe.withDefault model
     in
-        ( updatedModel, getFetches (Config config) updatedModel )
+    ( updatedModel, getFetches (Config config) updatedModel )
 
 
 {-| Move to the previous page.
@@ -434,7 +421,7 @@ movePrevious (Config config) ((Paginated pagination) as model) =
                     (\_ -> Paginated { pagination | currentPage = currentPage - 1 })
                 |> Maybe.withDefault model
     in
-        ( updatedModel, getFetches (Config config) updatedModel )
+    ( updatedModel, getFetches (Config config) updatedModel )
 
 
 {-| Move to a specific page.
@@ -452,10 +439,11 @@ jumpTo (Config config) page ((Paginated pagination) as model) =
         updatedModel =
             if canJump then
                 Paginated { pagination | currentPage = page }
+
             else
                 model
     in
-        ( updatedModel, getFetches (Config config) updatedModel )
+    ( updatedModel, getFetches (Config config) updatedModel )
 
 
 {-| Replace the current Extra Request Data, jumping to page 1 & performing new
@@ -465,6 +453,7 @@ updateData : Config a b c -> b -> Paginated a b c -> ( Paginated a b c, Cmd (Msg
 updateData config newData ((Paginated pagination) as model) =
     if newData == pagination.requestData then
         ( model, Cmd.none )
+
     else
         initial config newData 1 pagination.perPage
 
@@ -477,6 +466,7 @@ updatePerPage : Config a b c -> Int -> Paginated a b c -> ( Paginated a b c, Cmd
 updatePerPage config newPerPage ((Paginated pagination) as model) =
     if newPerPage == pagination.perPage then
         ( model, Cmd.none )
+
     else
         initial config pagination.requestData 1 newPerPage
 
@@ -504,17 +494,12 @@ update : Config a b c -> Msg a c -> Paginated a b c -> ( Paginated a b c, Cmd (M
 update config msg (Paginated model) =
     case msg of
         FetchPage page ((RemoteData.Failure e) as data) ->
-            let
-                _ =
-                    Debug.log "Fetch Error: "
-                        data
-            in
-                ( Paginated
-                    { model
-                        | items = Dict.insert page (RemoteData.Failure e) model.items
-                    }
-                , Cmd.none
-                )
+            ( Paginated
+                { model
+                    | items = Dict.insert page (RemoteData.Failure e) model.items
+                }
+            , Cmd.none
+            )
 
         FetchPage page (RemoteData.Success { items, totalCount, extraData }) ->
             let
@@ -532,10 +517,11 @@ update config msg (Paginated model) =
                 pageIsEmptyButPagesExist =
                     List.isEmpty items && getTotalPages updatedModel > 0
             in
-                if pageIsEmptyButPagesExist && page == model.currentPage then
-                    jumpTo config (getTotalPages updatedModel) updatedModel
-                else
-                    ( updatedModel, Cmd.none )
+            if pageIsEmptyButPagesExist && page == model.currentPage then
+                jumpTo config (getTotalPages updatedModel) updatedModel
+
+            else
+                ( updatedModel, Cmd.none )
 
         FetchPage page data ->
             let
@@ -543,9 +529,9 @@ update config msg (Paginated model) =
                     RemoteData.map (\{ items } -> Chunk { items = items, page = page })
                         data
             in
-                ( Paginated { model | items = Dict.insert page newData model.items }
-                , Cmd.none
-                )
+            ( Paginated { model | items = Dict.insert page newData model.items }
+            , Cmd.none
+            )
 
 
 
@@ -580,32 +566,35 @@ getFetches (Config config) (Paginated pagination) =
         currentFetch =
             if not <| hasItems 0 then
                 config.fetchRequest pagination.requestData currentPage pagination.perPage
-                    |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage currentPage)
+
             else
                 Cmd.none
 
         previousFetch =
             if not <| hasItems -1 then
                 config.fetchRequest pagination.requestData (currentPage - 1) pagination.perPage
-                    |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage <| currentPage - 1)
+
             else
                 Cmd.none
 
         nextFetch =
             if not <| hasItems 1 then
                 config.fetchRequest pagination.requestData (currentPage + 1) pagination.perPage
-                    |> RemoteData.sendRequest
                     |> Cmd.map (FetchPage <| currentPage + 1)
+
             else
                 Cmd.none
     in
-        if currentPage > 1 && (currentPage < totalPages || totalPages == 0) then
-            Cmd.batch [ currentFetch, previousFetch, nextFetch ]
-        else if currentPage > 1 then
-            Cmd.batch [ currentFetch, previousFetch ]
-        else if (currentPage < totalPages || totalPages == 0) then
-            Cmd.batch [ currentFetch, nextFetch ]
-        else
-            currentFetch
+    if currentPage > 1 && (currentPage < totalPages || totalPages == 0) then
+        Cmd.batch [ currentFetch, previousFetch, nextFetch ]
+
+    else if currentPage > 1 then
+        Cmd.batch [ currentFetch, previousFetch ]
+
+    else if currentPage < totalPages || totalPages == 0 then
+        Cmd.batch [ currentFetch, nextFetch ]
+
+    else
+        currentFetch

@@ -1,5 +1,7 @@
 # Paginate
 
+[![Build Status](https://travis-ci.org/prikhi/paginate.svg?branch=master)](https://travis-ci.org/prikhi/paginate)
+
 `Paginate` is an Elm library for fetching & caching paginated responses
 from an API.
 

@@ -1,0 +1,26 @@
+sudo: false
+
+language: node_js
+node_js: node
+
+cache:
+  directories:
+    - elm-stuff/build-artifacts
+    - elm-stuff/packages
+    - sysconfcpus
+os:
+  - linux
+
+env: ELM_VERSION=0.19.0
+
+before_install:
+  - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+
+install:
+  - node --version
+  - npm --version
+  - npm install -g elm@$ELM_VERSION
+
+script:
+  - ls
+  - elm make src/Paginate.elm --output /dev/null --docs=docs.json

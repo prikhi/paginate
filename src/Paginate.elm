@@ -468,7 +468,18 @@ updatePerPage config newPerPage ((Paginated pagination) as model) =
         ( model, Cmd.none )
 
     else
-        initial config pagination.requestData 1 newPerPage
+        let
+            newModel =
+                Paginated
+                    { items = Dict.empty
+                    , currentPage = 1
+                    , perPage = newPerPage
+                    , totalCount = 0
+                    , requestData = pagination.requestData
+                    , responseData = pagination.responseData
+                    }
+        in
+        ( newModel, getFetches config newModel )
 
 
 

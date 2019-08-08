@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v6.0.1
+
+Temporarily preserve the existing responseData when changing the items per page
+instead of clearing it out before fetching the new items. This helps prevent
+view changes outside the scope of the Pagination element, e.g. when rendering
+of the entire page depends on the responseData.
 
 ## v6.0.0
 

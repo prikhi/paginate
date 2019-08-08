@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v6.0.2
+
+Similar to the changes in v6.0.1, temporarily preserve the existing
+responseData when updating the requestData using the updateData function. The
+previous version only affected the updatePerPage function.
+
 ## v6.0.1
 
 Temporarily preserve the existing responseData when changing the items per page

@@ -455,7 +455,17 @@ updateData config newData ((Paginated pagination) as model) =
         ( model, Cmd.none )
 
     else
-        initial config newData 1 pagination.perPage
+        let
+            newModel =
+                Paginated
+                    { pagination
+                        | items = Dict.empty
+                        , currentPage = 1
+                        , totalCount = 0
+                        , requestData = newData
+                    }
+        in
+        ( newModel, getFetches config newModel )
 
 
 {-| Update the items per page, jumping to page 1 & performing new fetch
@@ -471,12 +481,11 @@ updatePerPage config newPerPage ((Paginated pagination) as model) =
         let
             newModel =
                 Paginated
-                    { items = Dict.empty
-                    , currentPage = 1
-                    , perPage = newPerPage
-                    , totalCount = 0
-                    , requestData = pagination.requestData
-                    , responseData = pagination.responseData
+                    { pagination
+                        | items = Dict.empty
+                        , currentPage = 1
+                        , perPage = newPerPage
+                        , totalCount = 0
                     }
         in
         ( newModel, getFetches config newModel )

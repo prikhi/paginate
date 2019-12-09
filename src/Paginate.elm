@@ -4,7 +4,7 @@ module Paginate exposing
     , getCurrent, getPage, getPerPage, getTotalPages, getTotalItems, getError, getRequestData, getResponseData, getRemoteData
     , getPagerSections, bootstrapPager
     , isLoading, hasNone, isFirst, isLast, hasPrevious, hasNext
-    , moveNext, movePrevious, jumpTo, updateData, updatePerPage
+    , moveNext, movePrevious, jumpTo, updateData, updateAndResetData, updatePerPage
     , Msg, update
     )
 
@@ -45,7 +45,7 @@ TODO: Eventually:
 
 # Modifying Pagination
 
-@docs moveNext, movePrevious, jumpTo, updateData, updatePerPage
+@docs moveNext, movePrevious, jumpTo, updateData, updateAndResetData, updatePerPage
 
 
 # Updating / Messages
@@ -466,6 +466,24 @@ updateData config newData ((Paginated pagination) as model) =
                     }
         in
         ( newModel, getFetches config newModel )
+
+
+{-| Similar to the `updateData` function, but this will also reset the
+`ResponseData`.
+
+Which you should pick depends on how the new request data affects your response
+data. E.g., if the slug of the pagination container changes, you should reset
+the response data as well, but if you're only changing the sorting order of the
+results, you can just use the `updateData` function.
+
+-}
+updateAndResetData : Config a b c -> b -> Paginated a b c -> ( Paginated a b c, Cmd (Msg a c) )
+updateAndResetData config newData model =
+    let
+        ( Paginated updatedModel, cmd ) =
+            updateData config newData model
+    in
+    ( Paginated { updatedModel | responseData = Nothing }, cmd )
 
 
 {-| Update the items per page, jumping to page 1 & performing new fetch

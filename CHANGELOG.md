@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v6.1.0
+
 ## v6.0.2
 
 Similar to the changes in v6.0.1, temporarily preserve the existing
